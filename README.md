@@ -6,7 +6,7 @@ CheckMK SNMP monitoring plugin for the [SMSEagle](https://www.smseagle.eu/) SMS 
 
 | Check name | Service name | Description |
 |---|---|---|
-| `smseagle_gsm` | `SMSEagle Modem <N>` | GSM modem state, SIM status, signal strength, network name |
+| `smseagle_gsm` | `SMSEagle GSM Modem <N>` | GSM modem state, SIM status, signal strength, network name |
 | `smseagle_sms_count` | `SMSEagle SMS Count Modem <N>` | Incoming and outgoing SMS counters with performance graphs |
 | `smseagle_environment` | `SMSEagle <sensor>` | Temperature (°C) and humidity (%) from optional sensors |
 | `smseagle_folders` | `SMSEagle Folders` | Device-wide message folder statistics (inbox, outbox, sent, errors) |
@@ -63,6 +63,15 @@ A value of `-1` means the item is not present or not connected.
 | SIM reg state | roaming | not registered/home/roaming |
 | Send errors 24h | — | > 0 |
 
+GSM signal levels are configurable via rules. Temperature and humidity can also
+be monitored with configurable upper thresholds.
+
+## Graphing and perfometers
+
+- `gsm_signal` includes a perfometer and graph
+- `temp` and `humidity` are stored as metrics for graphs and alert rules
+- SMS counters and folder statistics are exposed as metrics for trend graphs
+
 ## Requirements
 
 - CheckMK ≥ 2.3.0
@@ -76,7 +85,7 @@ A value of `-1` means the item is not present or not connected.
 Build or download the `.mkp` package and install it:
 
 ```bash
-mkp install smseagle-1.1.0.mkp
+mkp install smseagle-1.2.0.mkp
 ```
 
 ### Manual installation
@@ -84,7 +93,10 @@ mkp install smseagle-1.1.0.mkp
 Copy the files to your CheckMK site:
 
 ```bash
-cp agent_based/smseagle.py   ~/local/lib/check_mk/plugins/agent_based/
+mkdir -p ~/local/lib/python3/cmk_addons/plugins/smseagle/{agent_based,graphing,rulesets}
+cp agent_based/smseagle.py   ~/local/lib/python3/cmk_addons/plugins/smseagle/agent_based/
+cp graphing/smseagle.py      ~/local/lib/python3/cmk_addons/plugins/smseagle/graphing/
+cp rulesets/smseagle.py      ~/local/lib/python3/cmk_addons/plugins/smseagle/rulesets/
 cp checkman/smseagle_*       ~/local/share/check_mk/checkman/
 ```
 

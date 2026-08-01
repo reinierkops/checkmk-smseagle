@@ -3,6 +3,7 @@
 from cmk.graphing.v1 import graphs, metrics, perfometers, Title
 
 UNIT_COUNT = metrics.Unit(metrics.DecimalNotation(""), metrics.StrictPrecision(0))
+UNIT_DEGREE_CELSIUS = metrics.Unit(metrics.DecimalNotation("°C"))
 UNIT_PERCENTAGE = metrics.Unit(metrics.DecimalNotation("%"))
 
 metric_gsm_signal = metrics.Metric(
@@ -10,6 +11,18 @@ metric_gsm_signal = metrics.Metric(
     title=Title("GSM signal strength"),
     unit=UNIT_PERCENTAGE,
     color=metrics.Color.GREEN,
+)
+metric_temp = metrics.Metric(
+    name="temp",
+    title=Title("Temperature"),
+    unit=UNIT_DEGREE_CELSIUS,
+    color=metrics.Color.ORANGE,
+)
+metric_humidity = metrics.Metric(
+    name="humidity",
+    title=Title("Humidity"),
+    unit=UNIT_PERCENTAGE,
+    color=metrics.Color.CYAN,
 )
 metric_sms_count_in = metrics.Metric(
     name="sms_count_in",
@@ -70,6 +83,24 @@ graph_smseagle_gsm_signal = graphs.Graph(
     simple_lines=[
         metrics.WarningOf("gsm_signal"),
         metrics.CriticalOf("gsm_signal"),
+    ],
+)
+graph_smseagle_temperature = graphs.Graph(
+    name="smseagle_temperature",
+    title=Title("Temperature"),
+    compound_lines=["temp"],
+    simple_lines=[
+        metrics.WarningOf("temp"),
+        metrics.CriticalOf("temp"),
+    ],
+)
+graph_smseagle_humidity = graphs.Graph(
+    name="smseagle_humidity",
+    title=Title("Humidity"),
+    compound_lines=["humidity"],
+    simple_lines=[
+        metrics.WarningOf("humidity"),
+        metrics.CriticalOf("humidity"),
     ],
 )
 graph_smseagle_sms_count = graphs.Graph(
