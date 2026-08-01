@@ -1,55 +1,85 @@
-name: Build MKP Package
+name: Build Checkmk MKP
 
 on:
   release:
-    types: [created]
+    types: [published]
+
   workflow_dispatch:
-    inputs:
-      checkmk_version:
-        description: 'Checkmk 2.4 Docker image tag (e.g. 2.4.0p1-latest)'
-        required: false
-        default: '2.4.0-latest'
 
 permissions:
   contents: write
 
 jobs:
   build:
+
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
-      - name: Resolve Checkmk image tag
-        id: cmk
+      - uses: actions/checkout@v4
+
+      - name: Start Checkmk
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "tag=${{ inputs.checkmk_version }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=2.4.0-latest" >> "$GITHUB_OUTPUT"
-          fi
+          docker pull checkmk/check-mk-raw:2.4.0-latest
 
-      - name: Build MKP with Checkmk ${{ steps.cmk.outputs.tag }}
+          docker run -d \
+            --name checkmk \
+            -p 8080:5000 \
+            checkmk/check-mk-raw:2.4.0-latest
+
+      - name: Wait for site
         run: |
-          docker run --rm \
-            -v "$GITHUB_WORKSPACE:/workspace" \
-            -w /workspace \
-            "checkmk/check-mk-raw:${{ steps.cmk.outputs.tag }}" \
-            bash -c "/omd/versions/default/bin/mkp build packages/smseagle"
+          until docker exec checkmk omd sites
+          do
+            sleep 5
+          done
 
-      - name: List generated MKP files
-        run: ls -lh *.mkp
+      - name: Install plugin
+        run: |
 
-      - name: Upload MKP as workflow artifact
-        uses: actions/upload-artifact@v4
+          docker exec checkmk mkdir -p \
+            /omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle/{agent_based,checkman}
+
+          docker cp agent_based/. \
+            checkmk:/omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle/agent_based/
+
+          docker cp checkman/. \
+            checkmk:/omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle/checkman/
+
+          docker cp manifest/smseagle.manifest \
+            checkmk:/omd/sites/cmk/tmp/
+
+      - name: Reload Checkmk
+        run: |
+          docker exec checkmk su - cmk -c "cmk -R"
+
+      - name: Build MKP
+        run: |
+          docker exec checkmk \
+            su - cmk -c \
+            "mkp package /omd/sites/cmk/tmp/smseagle.manifest"
+
+      - name: Find package
+        run: |
+          docker exec checkmk find /omd/sites/cmk -name "*.mkp"
+
+      - name: Copy package
+        run: |
+          docker cp \
+            checkmk:/omd/sites/cmk/var/check_mk/packages_local/smseagle-*.mkp .
+
+      - name: Inspect package
+        run: |
+          docker exec checkmk \
+            su - cmk -c \
+            "mkp inspect /omd/sites/cmk/var/check_mk/packages_local/smseagle-*.mkp"
+
+      - uses: actions/upload-artifact@v4
         with:
           name: smseagle-mkp
           path: "*.mkp"
-          if-no-files-found: error
 
-      - name: Attach MKP to GitHub release
+      - uses: softprops/action-gh-release@v2
         if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v2
         with:
           files: "*.mkp"
