@@ -1,10 +1,11 @@
 name: Build MKP Package
 
 on:
+  workflow_dispatch:
+
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -14,83 +15,157 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
+      #########################################################################
+      # Checkout
+      #########################################################################
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Build Checkmk Docker image
+      #########################################################################
+      # Build manifest (locally)
+      #########################################################################
+
+      - name: Build manifest
         run: |
-          docker pull checkmk/check-mk-raw:2.4.0-latest
+          bash scripts/build-manifest.sh
+
+      #########################################################################
+      # Start Checkmk
+      #########################################################################
 
       - name: Start Checkmk
         run: |
+          docker pull checkmk/check-mk-raw:2.4.0-latest
+      
           docker run -d \
             --name checkmk \
             -p 5000:5000 \
             checkmk/check-mk-raw:2.4.0-latest
       
-          echo "Waiting for container..."
-          sleep 30
+          echo "Waiting for container initialization..."
+      
+          timeout=180
+          elapsed=0
+      
+          until docker logs checkmk 2>&1 | grep -q "### CONTAINER STARTED"; do
+      
+            if [ "$elapsed" -ge "$timeout" ]; then
+              echo "Timeout waiting for container"
+      
+              echo
+              docker logs checkmk
+      
+              exit 1
+            fi
+      
+            sleep 5
+            elapsed=$((elapsed+5))
+      
+            echo "Waiting... ${elapsed}s"
+      
+          done
+      
+          echo "Container ready."
       
           docker exec checkmk omd status cmk
-
+     
+      #########################################################################
+      # Copy repository
+      #########################################################################
+      
       - name: Copy repository into container
         run: |
           docker cp . checkmk:/tmp/checkmk-smseagle
 
-      - name: Build manifest
+      - name: Verify repository
         run: |
-          docker exec checkmk bash -c "
-            cd /tmp/checkmk-smseagle
-            bash scripts/build-manifest.sh
-          "
+          docker exec checkmk test -d /tmp/checkmk-smseagle
+          docker exec checkmk test -f /tmp/checkmk-smseagle/scripts/build-manifest.sh
+      
+      #########################################################################
+      # Synchronize plugin
+      #########################################################################
 
-      - name: Install plugin files
+      - name: Synchronize plugin
         run: |
-          docker exec checkmk bash -c "
-            cp -a /tmp/checkmk-smseagle/agent_based \
-              /omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle/
+          SITE=cmk CONTAINER=checkmk \
+            bash scripts/sync-plugin.sh
 
-            cp -a /tmp/checkmk-smseagle/graphing \
-              /omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle/
+      #########################################################################
+      # Copy manifest
+      #########################################################################
 
-            cp -a /tmp/checkmk-smseagle/rulesets \
-              /omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle/
+      - name: Copy manifest
+        run: |
+          docker cp \
+            build/smseagle.manifest \
+            checkmk:/omd/sites/cmk/tmp/
 
-            mkdir -p /omd/sites/cmk/local/share/check_mk/checkman
-
-            cp -a /tmp/checkmk-smseagle/checkman/. \
-              /omd/sites/cmk/local/share/check_mk/checkman/
-
-            cp /tmp/checkmk-smseagle/build/smseagle.manifest \
-              /omd/sites/cmk/tmp/
-
-            chown -R cmk:cmk /omd/sites/cmk/local
-          "
+      #########################################################################
+      # Build MKP
+      #########################################################################
 
       - name: Build MKP
         run: |
-          docker exec checkmk bash -c "
-            su - cmk -c 'mkp package /omd/sites/cmk/tmp/smseagle.manifest'
-          "
 
-      - name: Copy MKP
+          docker exec checkmk bash -c "
+
+            su - cmk -c '
+              mkp package /omd/sites/cmk/tmp/smseagle.manifest
+            '
+          "
+      #########################################################################
+      # Verify MKP
+      #########################################################################
+      - name: Verify MKP
         run: |
+          docker exec checkmk ls -lh \
+            /omd/sites/cmk/var/check_mk/packages_local
+      
+      #########################################################################
+      # Collect artifact
+      #########################################################################
+
+      - name: Collect MKP
+        run: |
+
           mkdir artifacts
 
           docker cp \
-            checkmk:/omd/sites/cmk/var/check_mk/packages_local/. \
-            artifacts/
+          checkmk:/omd/sites/cmk/var/check_mk/packages_local/smseagle-$(cat VERSION).mkp \
+          artifacts/
+
+          ls -lh artifacts
+
+      #########################################################################
+      # Upload artifact
+      #########################################################################
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: smseagle-mkp
+          name: smseagle-${{ github.ref_name }}
           path: artifacts/*.mkp
+
+      #########################################################################
+      # Publish Release
+      #########################################################################
 
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: artifacts/*.mkp
+
+      #########################################################################
+      # Cleanup
+      #########################################################################
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker rm -f checkmk || true
