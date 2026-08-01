@@ -5,14 +5,17 @@ license: GPL
 distribution: check_mk
 description:
  Monitors optional temperature and humidity sensors attached to an SMSEagle
- SMS gateway. One service is created per sensor that returns a value other
- than "-1".
+ SMS gateway, including the NXS-9700 4G/5G single-modem platform. One service
+ is created per sensor that returns a value other than "-1".
 
  Possible sensor items:
 
  {Temp}     — combined/default temperature reading (°C)
- {Temp1-4}  — individual temperature sensors 1 to 4 (°C)
- {Humidity} — relative humidity (%)
+ {Temp1}    — NXS-9700 internal temperature (°C)
+ {Temp2}    — NXS-9700 external temperature #1 (°C)
+ {Temp3}    — NXS-9700 external temperature #2 (°C)
+ {Temp4}    — NXS-9700 external temperature #3 (°C)
+ {Humidity} — NXS-9700 internal relative humidity (%)
 
  The sensor values are stored as performance data so they can be graphed and
  used with threshold-based alert rules.

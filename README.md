@@ -1,6 +1,6 @@
 # CheckMK SMSEagle
 
-CheckMK SNMP monitoring plugin for the [SMSEagle](https://www.smseagle.eu/) SMS gateway.
+CheckMK SNMP monitoring plugin for the [SMSEagle](https://www.smseagle.eu/) SMS gateway, including the NXS-9700 4G/5G single-modem platform.
 
 ## Checks
 
@@ -50,6 +50,25 @@ used by all four checks.
 | `FolderSent_Last1M` | `1247` | Messages successfully sent in the last calendar month |
 | `Temp` / `Temp1-4` | `21.5` | Temperature in °C (optional sensor) |
 | `Humidity` | `55.0` | Relative humidity % (optional sensor) |
+
+### NXS-9700 4G/5G sensor mapping
+
+For the single-modem NXS-9700 the currently available SNMP sensors map as follows:
+
+| Variable | Sensor |
+|---|---|
+| `GSM_NetName1` | Modem #1 network name |
+| `GSM_Signal1` | Modem #1 signal strength |
+| `Humidity` | Internal humidity |
+| `Temp1` | Internal temperature |
+| `Temp2` | External temperature #1 |
+| `Temp3` | External temperature #2 |
+| `Temp4` | External temperature #3 |
+| `FolderInbox_Total` | Inbox messages |
+| `FolderOutbox_Total` | Outbox messages |
+| `FolderSent_Last24H` | Sent messages, last 24 hours |
+| `FolderSent_Last24HSendErr` | Send errors, last 24 hours |
+| `FolderSent_Last1M` | Sent messages, last month |
 
 A value of `-1` means the item is not present or not connected.
 

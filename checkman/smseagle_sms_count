@@ -5,7 +5,8 @@ license: GPL
 distribution: check_mk
 description:
  Monitors the SMS message counters of an SMSEagle SMS gateway. One service is
- created per active modem (up to two modems are supported by the device).
+ created per active modem, including the single modem exposed by the NXS-9700
+ 4G/5G platform when the firmware publishes these counters.
 
  The check reports and graphs:
 

@@ -80,7 +80,10 @@ rule_spec_smseagle_environment = CheckParameters(
         item_title=Title("Sensor name"),
         item_form=String(
             help_text=Help(
-                "Use the exact service item such as Temp, Temp1, Temp2, or Humidity."
+                "Use the exact service item such as Temp, Temp1, Temp2, Temp3, "
+                "Temp4, or Humidity. On NXS-9700 devices Temp1 is the internal "
+                "temperature sensor, Temp2-Temp4 are external temperature sensors, "
+                "and Humidity is the internal humidity sensor."
             ),
         ),
     ),

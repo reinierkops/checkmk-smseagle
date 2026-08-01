@@ -287,6 +287,14 @@ check_plugin_smseagle_sms_count = CheckPlugin(
 # ──────────────────────────────────────────────────────────────────────────────
 
 _TEMP_KEYS = ["Temp", "Temp1", "Temp2", "Temp3", "Temp4"]
+_ENVIRONMENT_SENSOR_LABELS = {
+    "Temp": "Temperature",
+    "Temp1": "Internal temperature",
+    "Temp2": "External temperature #1",
+    "Temp3": "External temperature #2",
+    "Temp4": "External temperature #3",
+    "Humidity": "Internal humidity",
+}
 
 
 def discover_smseagle_environment(section: Section) -> DiscoveryResult:
@@ -303,22 +311,26 @@ def check_smseagle_environment(
     params: Mapping[str, Any],
     section: Section,
 ) -> CheckResult:
+    sensor_label = _ENVIRONMENT_SENSOR_LABELS.get(item, item)
     value_str = section.get(item, _UNAVAILABLE)
     if not _is_available(value_str):
-        yield Result(state=State.UNKNOWN, summary=f"{item} not available")
+        yield Result(state=State.UNKNOWN, summary=f"{sensor_label} not available")
         return
 
     try:
         value = float(value_str)
     except ValueError:
-        yield Result(state=State.UNKNOWN, summary=f"{item}: {value_str!r} (invalid)")
+        yield Result(
+            state=State.UNKNOWN,
+            summary=f"{sensor_label}: {value_str!r} (invalid)",
+        )
         return
 
     if item.startswith("Temp"):
         levels = _get_fixed_levels(params, "temperature_levels")
         yield Result(
             state=_state_from_upper_levels(value, levels),
-            summary=f"Temperature: {value:.1f} °C",
+            summary=f"{sensor_label}: {value:.1f} °C",
         )
         metric_kwargs = {"levels": levels} if levels is not None else {}
         yield Metric("temp", value, **metric_kwargs)
@@ -326,7 +338,7 @@ def check_smseagle_environment(
         levels = _get_fixed_levels(params, "humidity_levels")
         yield Result(
             state=_state_from_upper_levels(value, levels),
-            summary=f"Humidity: {value:.1f}%",
+            summary=f"{sensor_label}: {value:.1f}%",
         )
         metric_kwargs = {"boundaries": (0.0, 100.0)}
         if levels is not None:

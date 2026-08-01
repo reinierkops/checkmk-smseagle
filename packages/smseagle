@@ -1,5 +1,5 @@
 {'author': '',
- 'description': 'CheckMK SNMP monitoring plugin for the SMSEagle SMS gateway.\n\nMonitors GSM modem status, SMS in/out counters, message folder statistics,\nand optional environment sensors (temperature and humidity) via NET-SNMP\nEXTEND-MIB.\n\nChecks included:\n  smseagle_gsm         - GSM modem state, SIM status, signal strength\n  smseagle_sms_count   - Incoming and outgoing SMS counters\n  smseagle_environment - Temperature and humidity sensors\n  smseagle_folders     - Message folder statistics (inbox, outbox, sent, errors)\n',
+ 'description': 'CheckMK SNMP monitoring plugin for the SMSEagle SMS gateway.\n\nMonitors GSM modem status, SMS in/out counters, message folder statistics,\nand optional environment sensors (temperature and humidity) via NET-SNMP\nEXTEND-MIB, including the NXS-9700 4G/5G single-modem sensor layout.\n\nChecks included:\n  smseagle_gsm         - GSM modem state, SIM status, signal strength\n  smseagle_sms_count   - Incoming and outgoing SMS counters\n  smseagle_environment - Temperature and humidity sensors\n  smseagle_folders     - Message folder statistics (inbox, outbox, sent, errors)\n',
  'download_url': 'https://github.com/reinierkops/checkmk-smseagle',
  'files': {'agent_based': ['smseagle.py'],
            'graphing': ['smseagle.py'],
