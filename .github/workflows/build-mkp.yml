@@ -68,7 +68,22 @@ jobs:
 
             chown -R cmk:cmk /omd/sites/cmk/local
           "
+          
+      - name: Debug plugin layout
+        run: |
+          docker exec checkmk bash -c "
+            echo '=== Plugin files ==='
+            find /omd/sites/cmk/local/lib/python3/cmk_addons/plugins -type f | sort
 
+            echo
+            echo '=== Legacy checkman ==='
+            find /omd/sites/cmk/local/share/check_mk/checkman -type f | sort
+
+            echo
+            echo '=== Manifest ==='
+            cat /omd/sites/cmk/tmp/smseagle.manifest
+          "
+          
       - name: Build MKP
         run: |
           docker exec checkmk bash -c "
