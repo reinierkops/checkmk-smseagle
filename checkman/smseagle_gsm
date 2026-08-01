@@ -5,7 +5,8 @@ license: GPL
 distribution: check_mk
 description:
  Monitors the GSM modem status of an SMSEagle SMS gateway. One service is
- created per active modem (up to two modems are supported by the device).
+ created per active modem, including the single modem exposed by the NXS-9700
+ 4G/5G platform.
 
  The check reports the following information for each modem:
 
@@ -13,7 +14,8 @@ description:
  - SIM card state — {WARN} if not "READY"
  - SIM registration state — {OK} for home/registered, {WARN} for roaming,
    {CRIT} for any other state
- - GSM signal strength in percent — {WARN} below 20 %, {CRIT} below 10 %
+ - GSM signal strength in percent — defaults to {WARN} below 20 %, {CRIT}
+   below 10 % and can be changed via rules
  - Network operator name (informational)
 
  The plugin reads extended properties via NET-SNMP EXTEND-MIB
@@ -23,4 +25,6 @@ item:
  The modem index as a string ("1" or "2").
 
 inventory:
- One service per modem whose {GSM_ModemState} is not "-1".
+ One service per modem with at least one available GSM property
+ ({GSM_ModemState}, {SIM_State}, {SIM_RegState}, {GSM_Signal}, or
+ {GSM_NetName}).

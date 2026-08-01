@@ -12,7 +12,8 @@ Checks provided:
   smseagle_folders     - Device-wide message folder statistics
 """
 
-from typing import Dict, Sequence
+from collections.abc import Mapping, Sequence
+from typing import Any, Dict
 
 from cmk.agent_based.v2 import (
     CheckPlugin,
@@ -36,6 +37,7 @@ Section = Dict[str, str]
 # ──────────────────────────────────────────────────────────────────────────────
 
 _UNAVAILABLE = "-1"
+_NO_LEVELS = ("no_levels", None)
 
 
 def _decode_oid_name(oid_end: str) -> str:
@@ -59,6 +61,57 @@ def _decode_oid_name(oid_end: str) -> str:
 
 def _is_available(value: str) -> bool:
     return value != _UNAVAILABLE and value != ""
+
+
+def _discover_indexes(section: Section, prefixes: Sequence[str]) -> DiscoveryResult:
+    for index in range(1, 10):
+        if any(
+            key in section and _is_available(section[key])
+            for key in (f"{prefix}{index}" for prefix in prefixes)
+        ):
+            yield Service(item=str(index))
+
+
+def _get_fixed_levels(
+    params: Mapping[str, Any],
+    key: str,
+) -> tuple[float, float] | None:
+    levels = params.get(key)
+    if not isinstance(levels, tuple) or len(levels) != 2 or levels[0] != "fixed":
+        return None
+
+    values = levels[1]
+    if not isinstance(values, tuple) or len(values) != 2:
+        return None
+
+    try:
+        return float(values[0]), float(values[1])
+    except (TypeError, ValueError):
+        return None
+
+
+def _state_from_lower_levels(value: float, levels: tuple[float, float] | None) -> State:
+    if levels is None:
+        return State.OK
+
+    warn, crit = levels
+    if value <= crit:
+        return State.CRIT
+    if value <= warn:
+        return State.WARN
+    return State.OK
+
+
+def _state_from_upper_levels(value: float, levels: tuple[float, float] | None) -> State:
+    if levels is None:
+        return State.OK
+
+    warn, crit = levels
+    if value >= crit:
+        return State.CRIT
+    if value >= warn:
+        return State.WARN
+    return State.OK
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -96,32 +149,41 @@ snmp_section_smseagle = SNMPSection(
 
 _GSM_SIGNAL_WARN = 20.0   # % signal strength warning threshold
 _GSM_SIGNAL_CRIT = 10.0   # % signal strength critical threshold
+_GSM_FIELDS = (
+    "GSM_ModemState",
+    "SIM_State",
+    "SIM_RegState",
+    "GSM_Signal",
+    "GSM_NetName",
+)
 
 
 def discover_smseagle_gsm(section: Section) -> DiscoveryResult:
-    """Yield one service per modem that reports a GSM modem state."""
-    for modem_idx in range(1, 10):
-        key = f"GSM_ModemState{modem_idx}"
-        if key in section and _is_available(section[key]):
-            yield Service(item=str(modem_idx))
+    """Yield one service per modem with any available GSM data."""
+    yield from _discover_indexes(section, _GSM_FIELDS)
 
 
-def check_smseagle_gsm(item: str, section: Section) -> CheckResult:
+def check_smseagle_gsm(item: str, params: Mapping[str, Any], section: Section) -> CheckResult:
     modem_state = section.get(f"GSM_ModemState{item}", _UNAVAILABLE)
     sim_state = section.get(f"SIM_State{item}", _UNAVAILABLE)
     sim_reg_state = section.get(f"SIM_RegState{item}", _UNAVAILABLE)
     gsm_signal_raw = section.get(f"GSM_Signal{item}", _UNAVAILABLE)
     gsm_net_name = section.get(f"GSM_NetName{item}", _UNAVAILABLE)
+    signal_levels = _get_fixed_levels(params, "signal_levels")
 
-    if not _is_available(modem_state):
+    if not any(
+        _is_available(value)
+        for value in (modem_state, sim_state, sim_reg_state, gsm_signal_raw, gsm_net_name)
+    ):
         yield Result(state=State.UNKNOWN, summary=f"Modem {item} data not available")
         return
 
     # Modem on/off
-    if modem_state.lower() == "on":
-        yield Result(state=State.OK, summary=f"Modem: {modem_state}")
-    else:
-        yield Result(state=State.CRIT, summary=f"Modem: {modem_state}")
+    if _is_available(modem_state):
+        if modem_state.lower() == "on":
+            yield Result(state=State.OK, summary=f"Modem: {modem_state}")
+        else:
+            yield Result(state=State.CRIT, summary=f"Modem: {modem_state}")
 
     # SIM card state
     if _is_available(sim_state):
@@ -145,19 +207,12 @@ def check_smseagle_gsm(item: str, section: Section) -> CheckResult:
     if _is_available(gsm_signal_raw):
         try:
             signal = float(gsm_signal_raw)
-            if signal <= _GSM_SIGNAL_CRIT:
-                sig_state = State.CRIT
-            elif signal <= _GSM_SIGNAL_WARN:
-                sig_state = State.WARN
-            else:
-                sig_state = State.OK
+            sig_state = _state_from_lower_levels(signal, signal_levels)
             yield Result(state=sig_state, summary=f"Signal: {signal:.0f}%")
-            yield Metric(
-                "gsm_signal",
-                signal,
-                levels=(_GSM_SIGNAL_WARN, _GSM_SIGNAL_CRIT),
-                boundaries=(0.0, 100.0),
-            )
+            metric_kwargs: dict[str, Any] = {"boundaries": (0.0, 100.0)}
+            if signal_levels is not None:
+                metric_kwargs["levels"] = signal_levels
+            yield Metric("gsm_signal", signal, **metric_kwargs)
         except ValueError:
             yield Result(state=State.UNKNOWN, summary=f"Signal: {gsm_signal_raw} (invalid)")
 
@@ -168,10 +223,14 @@ def check_smseagle_gsm(item: str, section: Section) -> CheckResult:
 
 check_plugin_smseagle_gsm = CheckPlugin(
     name="smseagle_gsm",
-    service_name="SMSEagle Modem %s",
+    service_name="SMSEagle GSM Modem %s",
     sections=["smseagle"],
     discovery_function=discover_smseagle_gsm,
     check_function=check_smseagle_gsm,
+    check_ruleset_name="smseagle_gsm",
+    check_default_parameters={
+        "signal_levels": ("fixed", (_GSM_SIGNAL_WARN, _GSM_SIGNAL_CRIT)),
+    },
 )
 
 
@@ -182,10 +241,7 @@ check_plugin_smseagle_gsm = CheckPlugin(
 
 def discover_smseagle_sms_count(section: Section) -> DiscoveryResult:
     """Yield one service per modem that has SMS counters."""
-    for modem_idx in range(1, 10):
-        key_in = f"SMSCountIn{modem_idx}"
-        if key_in in section and _is_available(section[key_in]):
-            yield Service(item=str(modem_idx))
+    yield from _discover_indexes(section, ("SMSCountIn", "SMSCountOut"))
 
 
 def check_smseagle_sms_count(item: str, section: Section) -> CheckResult:
@@ -231,6 +287,14 @@ check_plugin_smseagle_sms_count = CheckPlugin(
 # ──────────────────────────────────────────────────────────────────────────────
 
 _TEMP_KEYS = ["Temp", "Temp1", "Temp2", "Temp3", "Temp4"]
+_ENVIRONMENT_SENSOR_LABELS = {
+    "Temp": "Temperature",
+    "Temp1": "Internal temperature",
+    "Temp2": "External temperature #1",
+    "Temp3": "External temperature #2",
+    "Temp4": "External temperature #3",
+    "Humidity": "Internal humidity",
+}
 
 
 def discover_smseagle_environment(section: Section) -> DiscoveryResult:
@@ -242,24 +306,44 @@ def discover_smseagle_environment(section: Section) -> DiscoveryResult:
         yield Service(item="Humidity")
 
 
-def check_smseagle_environment(item: str, section: Section) -> CheckResult:
+def check_smseagle_environment(
+    item: str,
+    params: Mapping[str, Any],
+    section: Section,
+) -> CheckResult:
+    sensor_label = _ENVIRONMENT_SENSOR_LABELS.get(item, item)
     value_str = section.get(item, _UNAVAILABLE)
     if not _is_available(value_str):
-        yield Result(state=State.UNKNOWN, summary=f"{item} not available")
+        yield Result(state=State.UNKNOWN, summary=f"{sensor_label} not available")
         return
 
     try:
         value = float(value_str)
     except ValueError:
-        yield Result(state=State.UNKNOWN, summary=f"{item}: {value_str!r} (invalid)")
+        yield Result(
+            state=State.UNKNOWN,
+            summary=f"{sensor_label}: {value_str!r} (invalid)",
+        )
         return
 
     if item.startswith("Temp"):
-        yield Result(state=State.OK, summary=f"Temperature: {value:.1f} °C")
-        yield Metric("temp", value)
+        levels = _get_fixed_levels(params, "temperature_levels")
+        yield Result(
+            state=_state_from_upper_levels(value, levels),
+            summary=f"{sensor_label}: {value:.1f} °C",
+        )
+        metric_kwargs = {"levels": levels} if levels is not None else {}
+        yield Metric("temp", value, **metric_kwargs)
     else:
-        yield Result(state=State.OK, summary=f"Humidity: {value:.1f}%")
-        yield Metric("humidity", value)
+        levels = _get_fixed_levels(params, "humidity_levels")
+        yield Result(
+            state=_state_from_upper_levels(value, levels),
+            summary=f"{sensor_label}: {value:.1f}%",
+        )
+        metric_kwargs = {"boundaries": (0.0, 100.0)}
+        if levels is not None:
+            metric_kwargs["levels"] = levels
+        yield Metric("humidity", value, **metric_kwargs)
 
 
 check_plugin_smseagle_environment = CheckPlugin(
@@ -268,6 +352,11 @@ check_plugin_smseagle_environment = CheckPlugin(
     sections=["smseagle"],
     discovery_function=discover_smseagle_environment,
     check_function=check_smseagle_environment,
+    check_ruleset_name="smseagle_environment",
+    check_default_parameters={
+        "temperature_levels": _NO_LEVELS,
+        "humidity_levels": _NO_LEVELS,
+    },
 )
 
 

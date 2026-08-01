@@ -1,12 +1,12 @@
 # CheckMK SMSEagle
 
-CheckMK SNMP monitoring plugin for the [SMSEagle](https://www.smseagle.eu/) SMS gateway.
+CheckMK SNMP monitoring plugin for the [SMSEagle](https://www.smseagle.eu/) SMS gateway, including the NXS-9700 4G/5G single-modem platform.
 
 ## Checks
 
 | Check name | Service name | Description |
 |---|---|---|
-| `smseagle_gsm` | `SMSEagle Modem <N>` | GSM modem state, SIM status, signal strength, network name |
+| `smseagle_gsm` | `SMSEagle GSM Modem <N>` | GSM modem state, SIM status, signal strength, network name |
 | `smseagle_sms_count` | `SMSEagle SMS Count Modem <N>` | Incoming and outgoing SMS counters with performance graphs |
 | `smseagle_environment` | `SMSEagle <sensor>` | Temperature (°C) and humidity (%) from optional sensors |
 | `smseagle_folders` | `SMSEagle Folders` | Device-wide message folder statistics (inbox, outbox, sent, errors) |
@@ -51,6 +51,25 @@ used by all four checks.
 | `Temp` / `Temp1-4` | `21.5` | Temperature in °C (optional sensor) |
 | `Humidity` | `55.0` | Relative humidity % (optional sensor) |
 
+### NXS-9700 4G/5G sensor mapping
+
+For the single-modem NXS-9700 the currently available SNMP sensors map as follows:
+
+| Variable | Sensor |
+|---|---|
+| `GSM_NetName1` | Modem #1 network name |
+| `GSM_Signal1` | Modem #1 signal strength |
+| `Humidity` | Internal humidity |
+| `Temp1` | Internal temperature |
+| `Temp2` | External temperature #1 |
+| `Temp3` | External temperature #2 |
+| `Temp4` | External temperature #3 |
+| `FolderInbox_Total` | Inbox messages |
+| `FolderOutbox_Total` | Outbox messages |
+| `FolderSent_Last24H` | Sent messages, last 24 hours |
+| `FolderSent_Last24HSendErr` | Send errors, last 24 hours |
+| `FolderSent_Last1M` | Sent messages, last month |
+
 A value of `-1` means the item is not present or not connected.
 
 ## Thresholds
@@ -62,6 +81,15 @@ A value of `-1` means the item is not present or not connected.
 | Modem state | — | not `on` |
 | SIM reg state | roaming | not registered/home/roaming |
 | Send errors 24h | — | > 0 |
+
+GSM signal levels are configurable via rules. Temperature and humidity can also
+be monitored with configurable upper thresholds.
+
+## Graphing and perfometers
+
+- `gsm_signal` includes a perfometer and graph
+- `temp` and `humidity` are stored as metrics for graphs and alert rules
+- SMS counters and folder statistics are exposed as metrics for trend graphs
 
 ## Requirements
 
@@ -76,7 +104,7 @@ A value of `-1` means the item is not present or not connected.
 Build or download the `.mkp` package and install it:
 
 ```bash
-mkp install smseagle-1.1.0.mkp
+mkp install smseagle-1.2.0.mkp
 ```
 
 ### Manual installation
@@ -84,7 +112,10 @@ mkp install smseagle-1.1.0.mkp
 Copy the files to your CheckMK site:
 
 ```bash
-cp agent_based/smseagle.py   ~/local/lib/check_mk/plugins/agent_based/
+mkdir -p ~/local/lib/python3/cmk_addons/plugins/smseagle/{agent_based,graphing,rulesets}
+cp agent_based/smseagle.py   ~/local/lib/python3/cmk_addons/plugins/smseagle/agent_based/
+cp graphing/smseagle.py      ~/local/lib/python3/cmk_addons/plugins/smseagle/graphing/
+cp rulesets/smseagle.py      ~/local/lib/python3/cmk_addons/plugins/smseagle/rulesets/
 cp checkman/smseagle_*       ~/local/share/check_mk/checkman/
 ```
 
