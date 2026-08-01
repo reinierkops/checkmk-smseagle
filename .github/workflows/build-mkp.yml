@@ -1,0 +1,55 @@
+name: Build MKP Package
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      checkmk_version:
+        description: 'Checkmk 2.4 Docker image tag (e.g. 2.4.0p1-latest)'
+        required: false
+        default: '2.4.0-latest'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Resolve Checkmk image tag
+        id: cmk
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.checkmk_version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=2.4.0-latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build MKP with Checkmk ${{ steps.cmk.outputs.tag }}
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -w /workspace \
+            "checkmk/check-mk-raw:${{ steps.cmk.outputs.tag }}" \
+            bash -c "/omd/versions/default/bin/mkp build packages/smseagle"
+
+      - name: List generated MKP files
+        run: ls -lh *.mkp
+
+      - name: Upload MKP as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: smseagle-mkp
+          path: "*.mkp"
+          if-no-files-found: error
+
+      - name: Attach MKP to GitHub release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "*.mkp"
