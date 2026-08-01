@@ -72,10 +72,7 @@ jobs:
           echo "Container ready."
       
           docker exec checkmk omd status cmk
-
-      #########################################################################
-      # Copy repository
-      #########################################################################
+     
       - name: Inspect Checkmk directories
         run: |
           docker exec checkmk bash -c "
@@ -86,11 +83,13 @@ jobs:
             echo '=== local/lib/python3 ==='
             find /omd/sites/cmk/local/lib/python3 -maxdepth 5 -type d | sort
           "
+      #########################################################################
+      # Copy repository
+      #########################################################################
       
-      
-            - name: Copy repository into container
-              run: |
-                docker cp . checkmk:/tmp/checkmk-smseagle
+      - name: Copy repository into container
+        run: |
+          docker cp . checkmk:/tmp/checkmk-smseagle
 
       #########################################################################
       # Synchronize plugin
