@@ -76,10 +76,21 @@ jobs:
       #########################################################################
       # Copy repository
       #########################################################################
-
-      - name: Copy repository into container
+      - name: Inspect Checkmk directories
         run: |
-          docker cp . checkmk:/tmp/checkmk-smseagle
+          docker exec checkmk bash -c "
+            echo '=== local/share ==='
+            find /omd/sites/cmk/local/share -maxdepth 3 -type d | sort
+      
+            echo
+            echo '=== local/lib/python3 ==='
+            find /omd/sites/cmk/local/lib/python3 -maxdepth 5 -type d | sort
+          "
+      
+      
+            - name: Copy repository into container
+              run: |
+                docker cp . checkmk:/tmp/checkmk-smseagle
 
       #########################################################################
       # Synchronize plugin
