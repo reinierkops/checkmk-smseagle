@@ -7,7 +7,7 @@ CheckMK SNMP monitoring plugin for the [SMSEagle](https://www.smseagle.eu/) SMS 
 | Check name | Service name | Description |
 |---|---|---|
 | `smseagle_gsm` | `SMSEagle GSM Modem <N>` | GSM modem state, SIM status, signal strength, network name |
-| `smseagle_sms_count` | `SMSEagle SMS Count Modem <N>` | Incoming and outgoing SMS counters with performance graphs |
+| `smseagle_sms_count` | `SMSEagle SMS Counters Modem <N>` | Incoming and outgoing SMS counters with performance graphs |
 | `smseagle_environment` | `SMSEagle <sensor>` | Temperature (°C) and humidity (%) from optional sensors |
 | `smseagle_folders` | `SMSEagle Folders` | Device-wide message folder statistics (inbox, outbox, sent, errors) |
 
@@ -76,7 +76,7 @@ A value of `-1` means the item is not present or not connected.
 
 | Metric | WARN | CRIT |
 |---|---|---|
-| GSM signal strength | < 20 % | < 10 % |
+| GSM signal strength | < 40 % | < 20 % |
 | SIM state | not `READY` | — |
 | Modem state | — | not `on` |
 | SIM reg state | roaming | not registered/home/roaming |

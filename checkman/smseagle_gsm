@@ -14,8 +14,8 @@ description:
  - SIM card state — {WARN} if not "READY"
  - SIM registration state — {OK} for home/registered, {WARN} for roaming,
    {CRIT} for any other state
- - GSM signal strength in percent — defaults to {WARN} below 20 %, {CRIT}
-   below 10 % and can be changed via rules
+ - GSM signal strength in percent — defaults to {WARN} below 40 %, {CRIT}
+   below 20 % and can be changed via rules
  - Network operator name (informational)
 
  The plugin reads extended properties via NET-SNMP EXTEND-MIB
