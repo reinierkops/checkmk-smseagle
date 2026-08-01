@@ -53,7 +53,7 @@ cat > build/smseagle.manifest <<MANIFEST
  },
 
  'name': 'smseagle',
- 'title': 'SMSEagle',
+ 'title': 'SMSEagle SNMP Monitoring',
  'version': '${VERSION}',
  'version.min_required': '2.4.0',
  'version.packaged': 'cmk-mkp-tool',
