@@ -9,6 +9,7 @@ Checks provided:
   smseagle_gsm         - Per-modem GSM status (state, signal, SIM, network)
   smseagle_sms_count   - Per-modem SMS in/out counters
   smseagle_environment - Temperature and humidity sensors
+  smseagle_folders     - Device-wide message folder statistics
 """
 
 from typing import Dict, Sequence
@@ -267,4 +268,86 @@ check_plugin_smseagle_environment = CheckPlugin(
     sections=["smseagle"],
     discovery_function=discover_smseagle_environment,
     check_function=check_smseagle_environment,
+)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# smseagle_folders  – Device-wide message folder statistics
+# ──────────────────────────────────────────────────────────────────────────────
+
+_FOLDER_KEYS = (
+    "FolderInbox_Total",
+    "FolderOutbox_Total",
+    "FolderSent_Last24H",
+    "FolderSent_Last24HSendErr",
+    "FolderSent_Last1M",
+)
+
+
+def discover_smseagle_folders(section: Section) -> DiscoveryResult:
+    """Yield one service when at least one folder statistic is available."""
+    if any(k in section and _is_available(section[k]) for k in _FOLDER_KEYS):
+        yield Service()
+
+
+def check_smseagle_folders(section: Section) -> CheckResult:
+    found_any = False
+    send_err_val = 0
+
+    for key in _FOLDER_KEYS:
+        raw = section.get(key, _UNAVAILABLE)
+        if not _is_available(raw):
+            continue
+        try:
+            val = int(raw)
+        except ValueError:
+            yield Result(state=State.UNKNOWN, summary=f"{key}: {raw!r} (invalid)")
+            continue
+
+        found_any = True
+        label_map = {
+            "FolderInbox_Total": "Inbox",
+            "FolderOutbox_Total": "Outbox",
+            "FolderSent_Last24H": "Sent 24h",
+            "FolderSent_Last24HSendErr": "Send errors 24h",
+            "FolderSent_Last1M": "Sent 1 month",
+        }
+        metric_map = {
+            "FolderInbox_Total": "folder_inbox_total",
+            "FolderOutbox_Total": "folder_outbox_total",
+            "FolderSent_Last24H": "folder_sent_last_24h",
+            "FolderSent_Last24HSendErr": "folder_sent_last_24h_send_err",
+            "FolderSent_Last1M": "folder_sent_last_1m",
+        }
+
+        label = label_map[key]
+        metric_name = metric_map[key]
+
+        if key == "FolderSent_Last24HSendErr":
+            send_err_val = val
+        else:
+            yield Result(state=State.OK, summary=f"{label}: {val}")
+        yield Metric(metric_name, float(val))
+
+    if not found_any:
+        yield Result(state=State.UNKNOWN, summary="No folder statistics available")
+        return
+
+    # Report send errors last so they set the worst state
+    if "FolderSent_Last24HSendErr" in section and _is_available(
+        section["FolderSent_Last24HSendErr"]
+    ):
+        err_state = State.CRIT if send_err_val > 0 else State.OK
+        yield Result(
+            state=err_state,
+            summary=f"Send errors 24h: {send_err_val}",
+        )
+
+
+check_plugin_smseagle_folders = CheckPlugin(
+    name="smseagle_folders",
+    service_name="SMSEagle Folders",
+    sections=["smseagle"],
+    discovery_function=discover_smseagle_folders,
+    check_function=check_smseagle_folders,
 )

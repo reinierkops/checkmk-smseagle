@@ -9,6 +9,7 @@ CheckMK SNMP monitoring plugin for the [SMSEagle](https://www.smseagle.eu/) SMS 
 | `smseagle_gsm` | `SMSEagle Modem <N>` | GSM modem state, SIM status, signal strength, network name |
 | `smseagle_sms_count` | `SMSEagle SMS Count Modem <N>` | Incoming and outgoing SMS counters with performance graphs |
 | `smseagle_environment` | `SMSEagle <sensor>` | Temperature (°C) and humidity (%) from optional sensors |
+| `smseagle_folders` | `SMSEagle Folders` | Device-wide message folder statistics (inbox, outbox, sent, errors) |
 
 ## How it works
 
@@ -22,9 +23,11 @@ as a length-prefixed ASCII byte sequence in the OID index, e.g.:
 ```
 
 The plugin decodes these OID names automatically and builds a key/value map
-used by all three checks.
+used by all four checks.
 
 ## Variables monitored
+
+### Per-modem (N = modem index)
 
 | Variable | Example | Description |
 |---|---|---|
@@ -35,6 +38,16 @@ used by all three checks.
 | `GSM_NetName1/2` | `KPN KPN` | Network operator name |
 | `SMSCountIn1/2` | `0` | Cumulative incoming SMS count |
 | `SMSCountOut1/2` | `0` | Cumulative outgoing SMS count |
+
+### Device-wide
+
+| Variable | Example | Description |
+|---|---|---|
+| `FolderInbox_Total` | `3` | Total messages currently in inbox |
+| `FolderOutbox_Total` | `0` | Total messages currently queued in outbox |
+| `FolderSent_Last24H` | `42` | Messages successfully sent in the last 24 hours |
+| `FolderSent_Last24HSendErr` | `0` | Messages that failed to send in the last 24 hours |
+| `FolderSent_Last1M` | `1247` | Messages successfully sent in the last calendar month |
 | `Temp` / `Temp1-4` | `21.5` | Temperature in °C (optional sensor) |
 | `Humidity` | `55.0` | Relative humidity % (optional sensor) |
 
@@ -48,6 +61,7 @@ A value of `-1` means the item is not present or not connected.
 | SIM state | not `READY` | — |
 | Modem state | — | not `on` |
 | SIM reg state | roaming | not registered/home/roaming |
+| Send errors 24h | — | > 0 |
 
 ## Requirements
 
@@ -62,7 +76,7 @@ A value of `-1` means the item is not present or not connected.
 Build or download the `.mkp` package and install it:
 
 ```bash
-mkp install smseagle-1.0.0.mkp
+mkp install smseagle-1.1.0.mkp
 ```
 
 ### Manual installation
