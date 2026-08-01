@@ -29,11 +29,11 @@ jobs:
             --name checkmk \
             -p 5000:5000 \
             checkmk/check-mk-raw:2.4.0-latest
-
+      
           echo "Waiting for container..."
           sleep 30
-
-          docker exec checkmk omd start cmk
+      
+          docker exec checkmk omd status cmk
 
       - name: Copy repository into container
         run: |
