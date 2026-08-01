@@ -23,4 +23,4 @@ item:
  The modem index as a string ("1" or "2").
 
 inventory:
- One service per modem whose {SMSCountIn} value is not "-1".
+ One service per modem whose {SMSCountIn} or {SMSCountOut} value is not "-1".
