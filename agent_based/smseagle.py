@@ -147,8 +147,8 @@ snmp_section_smseagle = SNMPSection(
 # smseagle_gsm  – GSM modem status
 # ──────────────────────────────────────────────────────────────────────────────
 
-_GSM_SIGNAL_WARN = 20.0   # % signal strength warning threshold
-_GSM_SIGNAL_CRIT = 10.0   # % signal strength critical threshold
+_GSM_SIGNAL_WARN = 40.0   # % signal strength warning threshold
+_GSM_SIGNAL_CRIT = 20.0   # % signal strength critical threshold
 _GSM_FIELDS = (
     "GSM_ModemState",
     "SIM_State",
@@ -275,7 +275,7 @@ def check_smseagle_sms_count(item: str, section: Section) -> CheckResult:
 
 check_plugin_smseagle_sms_count = CheckPlugin(
     name="smseagle_sms_count",
-    service_name="SMSEagle SMS Count Modem %s",
+    service_name="SMSEagle SMS Counters Modem %s",
     sections=["smseagle"],
     discovery_function=discover_smseagle_sms_count,
     check_function=check_smseagle_sms_count,

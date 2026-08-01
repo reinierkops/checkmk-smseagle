@@ -25,7 +25,7 @@ def _gsm_parameter_form() -> Dictionary:
                     form_spec_template=Percentage(),
                     level_direction=LevelDirection.LOWER,
                     migrate=migrate_to_float_simple_levels,
-                    prefill_fixed_levels=InputHint((20.0, 10.0)),
+                    prefill_fixed_levels=InputHint((40.0, 20.0)),
                 ),
             ),
         },
