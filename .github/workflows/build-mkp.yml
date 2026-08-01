@@ -31,7 +31,7 @@ jobs:
             checkmk/check-mk-raw:2.4.0-latest
       
           echo "Waiting for container..."
-          sleep 30
+          sleep 60
       
           docker exec checkmk omd status cmk
 
