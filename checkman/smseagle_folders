@@ -1,0 +1,28 @@
+title: SMSEagle Message Folder Statistics
+agents: snmp
+catalog: hw/network/smseagle
+license: GPL
+distribution: check_mk
+description:
+ Monitors device-wide message folder statistics of an SMSEagle SMS gateway.
+ One service is created per device when at least one folder metric is available.
+
+ The check reports and graphs the following counters:
+
+ {FolderInbox_Total}         — total number of messages currently in the inbox
+ {FolderOutbox_Total}        — total number of messages currently queued in the outbox
+ {FolderSent_Last24H}        — number of messages successfully sent in the last 24 hours
+ {FolderSent_Last24HSendErr} — number of messages that failed to send in the last 24 hours
+ {FolderSent_Last1M}         — number of messages successfully sent in the last calendar month
+
+ The check state is {OK} when there are no send errors in the last 24 hours.
+ It becomes {CRIT} when {FolderSent_Last24HSendErr} is greater than 0, indicating
+ that one or more outgoing messages could not be delivered.
+
+ All five values are stored as performance data for trending and graphing.
+
+ The plugin reads extended properties via NET-SNMP EXTEND-MIB
+ (.1.3.6.1.4.1.8072.1.3.2.3.1.2).
+
+inventory:
+ One service is created per device when at least one folder statistic is not "-1".
