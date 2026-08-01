@@ -1,4 +1,3 @@
-cat > scripts/sync-plugin.sh <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -49,10 +48,14 @@ done
 ###############################################################################
 
 if [[ -d checkman ]]; then
+
     echo " -> legacy checkman"
+
+    docker exec "$CONTAINER" mkdir -p "$CHECKMAN_BASE"
 
     docker cp checkman/. \
         "$CONTAINER:$CHECKMAN_BASE/"
+
 fi
 
 ###############################################################################
@@ -76,6 +79,3 @@ docker exec "$CONTAINER" find "$CHECKMAN_BASE" -type f | sort
 
 echo
 echo "Plugin synchronized."
-EOF
-
-chmod +x scripts/sync-plugin.sh
