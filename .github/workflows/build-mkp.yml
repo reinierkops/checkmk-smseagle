@@ -48,26 +48,43 @@ jobs:
 
       - name: Install plugin files
         run: |
-          docker exec checkmk bash -c "
-            cp -a /tmp/checkmk-smseagle/agent_based \
-              /omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle/
-
-            cp -a /tmp/checkmk-smseagle/graphing \
-              /omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle/
-
-            cp -a /tmp/checkmk-smseagle/rulesets \
-              /omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle/
-
+          docker exec checkmk bash -c '
+      
+            set -e
+      
+            mkdir -p /omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle
+      
+            mkdir -p /omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle/agent_based
+            mkdir -p /omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle/checkman
+            mkdir -p /omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle/graphing
+            mkdir -p /omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle/rulesets
+      
             mkdir -p /omd/sites/cmk/local/share/check_mk/checkman
-
-            cp -a /tmp/checkmk-smseagle/checkman/. \
-              /omd/sites/cmk/local/share/check_mk/checkman/
-
+      
+            cp -av /tmp/checkmk-smseagle/agent_based/. \
+                   /omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle/agent_based/
+      
+            cp -av /tmp/checkmk-smseagle/checkman/. \
+                   /omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle/checkman/
+      
+            cp -av /tmp/checkmk-smseagle/graphing/. \
+                   /omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle/graphing/
+      
+            cp -av /tmp/checkmk-smseagle/rulesets/. \
+                   /omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle/rulesets/
+      
+            cp -av /tmp/checkmk-smseagle/checkman/. \
+                   /omd/sites/cmk/local/share/check_mk/checkman/
+      
             cp /tmp/checkmk-smseagle/build/smseagle.manifest \
-              /omd/sites/cmk/tmp/
-
+               /omd/sites/cmk/tmp/
+      
             chown -R cmk:cmk /omd/sites/cmk/local
-          "
+      
+            echo
+            echo "Installed files:"
+            find /omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle -type f | sort
+          '
           
       - name: Debug plugin layout
         run: |
