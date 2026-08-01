@@ -39,39 +39,38 @@ jobs:
 
       - name: Start Checkmk
         run: |
-
           docker pull checkmk/check-mk-raw:2.4.0-latest
-
+      
           docker run -d \
             --name checkmk \
             -p 5000:5000 \
             checkmk/check-mk-raw:2.4.0-latest
-
-          echo "Waiting for Checkmk..."
-
+      
+          echo "Waiting for container initialization..."
+      
           timeout=180
           elapsed=0
-
-          until docker exec checkmk omd status cmk | grep -q "Overall state: running"; do
-
+      
+          until docker logs checkmk 2>&1 | grep -q "### CONTAINER STARTED"; do
+      
             if [ "$elapsed" -ge "$timeout" ]; then
-
-              echo "Timeout waiting for Checkmk"
-
-              docker exec checkmk omd status cmk || true
+              echo "Timeout waiting for container"
+      
+              echo
               docker logs checkmk
-
+      
               exit 1
             fi
-
+      
             sleep 5
-
-            elapsed=$((elapsed + 5))
-
+            elapsed=$((elapsed+5))
+      
             echo "Waiting... ${elapsed}s"
-
+      
           done
-
+      
+          echo "Container ready."
+      
           docker exec checkmk omd status cmk
 
       #########################################################################
