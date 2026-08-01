@@ -1,9 +1,9 @@
-name: Build Checkmk MKP
+name: Build MKP Package
 
 on:
-  release:
-    types: [published]
-
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 permissions:
@@ -11,75 +11,86 @@ permissions:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - uses: actions/checkout@v4
-
-      - name: Start Checkmk
+      - name: Build Checkmk Docker image
         run: |
           docker pull checkmk/check-mk-raw:2.4.0-latest
 
+      - name: Start Checkmk
+        run: |
           docker run -d \
             --name checkmk \
-            -p 8080:5000 \
+            -p 5000:5000 \
             checkmk/check-mk-raw:2.4.0-latest
 
-      - name: Wait for site
+          echo "Waiting for container..."
+          sleep 30
+
+          docker exec checkmk omd start cmk
+
+      - name: Copy repository into container
         run: |
-          until docker exec checkmk omd sites
-          do
-            sleep 5
-          done
+          docker cp . checkmk:/tmp/checkmk-smseagle
 
-      - name: Install plugin
+      - name: Build manifest
         run: |
+          docker exec checkmk bash -c "
+            cd /tmp/checkmk-smseagle
+            bash scripts/build-manifest.sh
+          "
 
-          docker exec checkmk mkdir -p \
-            /omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle/{agent_based,checkman}
-
-          docker cp agent_based/. \
-            checkmk:/omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle/agent_based/
-
-          docker cp checkman/. \
-            checkmk:/omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle/checkman/
-
-          docker cp manifest/smseagle.manifest \
-            checkmk:/omd/sites/cmk/tmp/
-
-      - name: Reload Checkmk
+      - name: Install plugin files
         run: |
-          docker exec checkmk su - cmk -c "cmk -R"
+          docker exec checkmk bash -c "
+            cp -a /tmp/checkmk-smseagle/agent_based \
+              /omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle/
+
+            cp -a /tmp/checkmk-smseagle/graphing \
+              /omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle/
+
+            cp -a /tmp/checkmk-smseagle/rulesets \
+              /omd/sites/cmk/local/lib/python3/cmk_addons/plugins/smseagle/
+
+            mkdir -p /omd/sites/cmk/local/share/check_mk/checkman
+
+            cp -a /tmp/checkmk-smseagle/checkman/. \
+              /omd/sites/cmk/local/share/check_mk/checkman/
+
+            cp /tmp/checkmk-smseagle/build/smseagle.manifest \
+              /omd/sites/cmk/tmp/
+
+            chown -R cmk:cmk /omd/sites/cmk/local
+          "
 
       - name: Build MKP
         run: |
-          docker exec checkmk \
-            su - cmk -c \
-            "mkp package /omd/sites/cmk/tmp/smseagle.manifest"
+          docker exec checkmk bash -c "
+            su - cmk -c 'mkp package /omd/sites/cmk/tmp/smseagle.manifest'
+          "
 
-      - name: Find package
+      - name: Copy MKP
         run: |
-          docker exec checkmk find /omd/sites/cmk -name "*.mkp"
+          mkdir artifacts
 
-      - name: Copy package
-        run: |
           docker cp \
-            checkmk:/omd/sites/cmk/var/check_mk/packages_local/smseagle-*.mkp .
+            checkmk:/omd/sites/cmk/var/check_mk/packages_local/. \
+            artifacts/
 
-      - name: Inspect package
-        run: |
-          docker exec checkmk \
-            su - cmk -c \
-            "mkp inspect /omd/sites/cmk/var/check_mk/packages_local/smseagle-*.mkp"
-
-      - uses: actions/upload-artifact@v4
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
           name: smseagle-mkp
-          path: "*.mkp"
+          path: artifacts/*.mkp
 
-      - uses: softprops/action-gh-release@v2
-        if: github.event_name == 'release'
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
         with:
-          files: "*.mkp"
+          files: artifacts/*.mkp
