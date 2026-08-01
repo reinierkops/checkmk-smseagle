@@ -73,16 +73,6 @@ jobs:
       
           docker exec checkmk omd status cmk
      
-      - name: Inspect Checkmk directories
-        run: |
-          docker exec checkmk bash -c "
-            echo '=== local/share ==='
-            find /omd/sites/cmk/local/share -maxdepth 3 -type d | sort
-      
-            echo
-            echo '=== local/lib/python3 ==='
-            find /omd/sites/cmk/local/lib/python3 -maxdepth 5 -type d | sort
-          "
       #########################################################################
       # Copy repository
       #########################################################################
@@ -91,6 +81,11 @@ jobs:
         run: |
           docker cp . checkmk:/tmp/checkmk-smseagle
 
+      - name: Verify repository
+        run: |
+          docker exec checkmk test -d /tmp/checkmk-smseagle
+          docker exec checkmk test -f /tmp/checkmk-smseagle/scripts/build-manifest.sh
+      
       #########################################################################
       # Synchronize plugin
       #########################################################################
@@ -111,35 +106,6 @@ jobs:
             checkmk:/omd/sites/cmk/tmp/
 
       #########################################################################
-      # Debug
-      #########################################################################
-
-      - name: Debug plugin layout
-        run: |
-
-          docker exec checkmk bash -c "
-
-            echo '===== Plugin ====='
-
-            find /omd/sites/cmk/local/lib/python3/cmk_addons/plugins \
-              -type f | sort
-
-            echo
-
-            echo '===== Checkman ====='
-
-            find /omd/sites/cmk/local/share/check_mk/checkman \
-              -type f | sort
-
-            echo
-
-            echo '===== Manifest ====='
-
-            cat /omd/sites/cmk/tmp/smseagle.manifest
-
-          "
-
-      #########################################################################
       # Build MKP
       #########################################################################
 
@@ -151,9 +117,15 @@ jobs:
             su - cmk -c '
               mkp package /omd/sites/cmk/tmp/smseagle.manifest
             '
-
           "
-
+      #########################################################################
+      # Verify MKP
+      #########################################################################
+      - name: Verify MKP
+        run: |
+          docker exec checkmk ls -lh \
+            /omd/sites/cmk/var/check_mk/packages_local
+      
       #########################################################################
       # Collect artifact
       #########################################################################
@@ -164,8 +136,8 @@ jobs:
           mkdir artifacts
 
           docker cp \
-            checkmk:/omd/sites/cmk/var/check_mk/packages_local/. \
-            artifacts/
+          checkmk:/omd/sites/cmk/var/check_mk/packages_local/smseagle-$(cat VERSION).mkp \
+          artifacts/
 
           ls -lh artifacts
 
@@ -176,7 +148,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: smseagle-mkp
+          name: smseagle-${{ github.ref_name }}
           path: artifacts/*.mkp
 
       #########################################################################
